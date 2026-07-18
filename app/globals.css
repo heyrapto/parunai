@@ -26,6 +26,7 @@
 
   --orange-100: #ffedd5;
   --orange-800: #9a3412;
+  --orange-50: #fff7ed;
   --orange-500: #f97316;
 
   --amber-50: #fffbeb;
@@ -35,6 +36,12 @@
 
   --red-100: #fee2e2;
   --red-700: #b91c1c;
+
+  --green-100: #dcfce7;
+  --green-800: #166534;
+
+  --blue-100: #dbeafe;
+  --blue-800: #075985;
 }
 
 .dark {
@@ -58,6 +65,7 @@
 
   --orange-100: #2c1a0c;
   --orange-800: #ffedd5;
+  --orange-50: #2a180a;
   --orange-500: #f97316;
 
   --amber-50: #1c150c;
@@ -67,6 +75,12 @@
 
   --red-100: #2c0f10;
   --red-700: #fee2e2;
+
+  --green-100: #0c2615;
+  --green-800: #86efac;
+
+  --blue-100: #0c2046;
+  --blue-800: #7dd3fc;
 }
 
 /* ==========================================================================
@@ -104,6 +118,7 @@
   /* Override specific alert/highlight colors dynamically */
   --color-orange-100: var(--orange-100);
   --color-orange-800: var(--orange-800);
+  --color-orange-50: var(--orange-50);
   --color-orange-500: var(--orange-500);
 
   --color-amber-50: var(--amber-50);
@@ -113,6 +128,12 @@
 
   --color-red-100: var(--red-100);
   --color-red-700: var(--red-700);
+
+  --color-green-100: var(--green-100);
+  --color-green-800: var(--green-800);
+
+  --color-blue-100: var(--blue-100);
+  --color-blue-800: var(--blue-800);
 }
 
 /* ==========================================================================

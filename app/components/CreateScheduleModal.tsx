@@ -132,7 +132,7 @@ export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
                   placeholder="e.g. Code Python everyday"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full rounded-xl border-4 border-black px-3.5 py-2.5 font-sans outline-none focus:bg-amber-50 focus:shadow-[4px_4px_0px_0px_#000] transition-all font-bold"
+                  className="w-full rounded-xl border-4 border-black px-3.5 py-2.5 font-sans outline-none bg-white focus:bg-amber-50 focus:shadow-[4px_4px_0px_0px_#000] dark:focus:shadow-[4px_4px_0px_0px_#fff] transition-all font-bold"
                 />
               </div>
 
@@ -145,7 +145,7 @@ export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
                   placeholder="e.g. To get a high-paying job, make mom proud, and beat cousin Timmy."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full rounded-xl border-4 border-black px-3.5 py-2.5 font-sans outline-none focus:bg-amber-50 h-20 resize-none transition-all font-bold"
+                  className="w-full rounded-xl border-4 border-black px-3.5 py-2.5 font-sans outline-none bg-white focus:bg-amber-50 h-20 resize-none transition-all font-bold"
                 />
               </div>
 

@@ -491,9 +491,9 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                         <span className="font-mono font-black">{selectedTaskDetails.schedule.durationMinutes} Min</span>
                       </div>
                       {isRollover && (
-                        <div className="flex justify-between items-center text-xs text-red-600 font-black bg-red-50 p-1.5 rounded-lg border-2 border-red-300">
+                        <div className="flex justify-between items-center text-xs text-red-700 font-black bg-red-50 p-1.5 rounded-lg border-2 border-red-700">
                           <span className="flex items-center gap-1 uppercase">
-                            <AlertTriangle className="w-3.5 h-3.5" /> Penalty Rollover:
+                            <AlertTriangle className="w-3.5 h-3.5 animate-pulse" /> Penalty Rollover:
                           </span>
                           <span className="font-mono font-black">+{log.durationRequired - selectedTaskDetails.schedule.durationMinutes} Min</span>
                         </div>

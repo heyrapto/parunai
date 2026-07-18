@@ -17,28 +17,28 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ leaderboard, profile }
       return {
         status: "🚨 CATASTROPHE LEVEL DISAPPOINTMENT",
         message: "Your streak is 0! Cousin Timmy was born with a 100-day streak. Complete your tasks before midnight or do not call me your mother.",
-        color: "bg-red-100 text-red-800 border-red-500",
-        icon: <Skull className="w-8 h-8 text-red-600 animate-bounce" />
+        color: "bg-red-100 text-red-700 border-red-700",
+        icon: <Skull className="w-8 h-8 text-red-700 animate-bounce" />
       };
     } else if (userStreak < 3) {
       return {
         status: "⚠️ MINIMAL SUSPECTED EFFORT",
         message: "Fine, you did tasks for a couple of days. Is that supposed to impress me? Call me when you get to 50 days, then maybe I will put your drawing on the fridge.",
-        color: "bg-amber-100 text-amber-800 border-amber-500",
-        icon: <FlameKindling className="w-8 h-8 text-amber-600" />
+        color: "bg-amber-100 text-amber-800 border-amber-800",
+        icon: <FlameKindling className="w-8 h-8 text-amber-800" />
       };
     } else if (userStreak < 7) {
       return {
         status: "📈 ACCURATE HUMAN IMITATION",
         message: "You are actually completing tasks for nearly a week! Very good, although Timmy completed a computer science degree during his first week on earth. Keep it up.",
-        color: "bg-blue-100 text-blue-800 border-blue-500",
+        color: "bg-blue-100 text-blue-800 border-blue-800",
         icon: <Flame className="w-8 h-8 text-orange-500 animate-pulse" />
       };
     } else {
       return {
         status: "🌟 MOM'S GOLDEN CHILD IN TRAINING",
         message: "Over a 7-day streak! I actually told your aunt about you yesterday (though she reminded me Timmy just got knighted). I am very proud of you! Keep this streak alive!",
-        color: "bg-green-100 text-green-800 border-green-500",
+        color: "bg-green-100 text-green-800 border-green-800",
         icon: <Star className="w-8 h-8 text-yellow-500 animate-spin" style={{ animationDuration: '6s' }} />
       };
     }
@@ -98,7 +98,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ leaderboard, profile }
                   <div className="flex items-center gap-4">
                     {/* Rank Circle */}
                     <div className={`w-8 h-8 rounded-xl border-4 border-black flex items-center justify-center font-mono font-black text-sm shrink-0 ${
-                      entry.rank === 1 ? "bg-yellow-400 text-black" :
+                      entry.rank === 1 ? "bg-yellow-400 text-neutral-900" :
                       entry.rank === 2 ? "bg-neutral-300 text-black" :
                       entry.rank === 3 ? "bg-amber-600 text-white" : "bg-white text-black"
                     }`}>
@@ -152,21 +152,21 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ leaderboard, profile }
                 <span className="text-lg">🏆</span>
                 <div>
                   <strong>Acquired 3rd Venture Capital:</strong>
-                  <p className="text-neutral-400">Timmy just raised $20M for his AI toaster startup before lunch.</p>
+                  <p className="text-neutral-300">Timmy just raised $20M for his AI toaster startup before lunch.</p>
                 </div>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-lg">⚡</span>
                 <div>
                   <strong>Woke up at 3:15 AM:</strong>
-                  <p className="text-neutral-400">Did 100 miles of running, designed a new CPU, and meditated for 4 hours.</p>
+                  <p className="text-neutral-300">Did 100 miles of running, designed a new CPU, and meditated for 4 hours.</p>
                 </div>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-lg">🧠</span>
                 <div>
                   <strong>Solved Cancer (part-time):</strong>
-                  <p className="text-neutral-400">He is just doing this on his Sunday afternoon breaks between playing violin.</p>
+                  <p className="text-neutral-300">He is just doing this on his Sunday afternoon breaks between playing violin.</p>
                 </div>
               </li>
             </ul>
