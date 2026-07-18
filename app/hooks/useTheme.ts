@@ -19,9 +19,9 @@ export function useTheme() {
       }
     }
     // 2. Default to system preference
-    if (typeof window !== "undefined" && window.matchMedia) {
-      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    }
+    // if (typeof window !== "undefined" && window.matchMedia) {
+    //   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    // }
     return "light";
   });
 
