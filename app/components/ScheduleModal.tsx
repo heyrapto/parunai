@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Calendar, Clock, Sparkles } from "lucide-react";
 import { RecurrenceType, Schedule } from "../types";
 
-interface CreateScheduleModalProps {
+interface ScheduleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (schedule: Omit<Schedule, "id" | "createdAt">) => void;
+  onSubmit: (schedule: Partial<Omit<Schedule, "id" | "createdAt">>) => void;
+  initialData?: Schedule | null;
 }
 
 const CATEGORIES = [
@@ -31,10 +32,11 @@ const WEEK_DAYS = [
   { label: "Sat", value: 6 }
 ];
 
-export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
+export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   isOpen,
   onClose,
-  onSubmit
+  onSubmit,
+  initialData
 }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -44,6 +46,33 @@ export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
   const [monthlyDay, setMonthlyDay] = useState(1);
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
+  const [endDate, setEndDate] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialData) {
+        setTitle(initialData.title);
+        setDescription(initialData.description || "");
+        setCategory(initialData.category);
+        setRecurrence(initialData.recurrence);
+        setWeeklyDays(initialData.weeklyDays || [1, 2, 3, 4, 5]);
+        setMonthlyDay(initialData.monthlyDay || 1);
+        setDurationMinutes(initialData.durationMinutes);
+        setStartDate(initialData.startDate);
+        setEndDate(initialData.endDate || "");
+      } else {
+        setTitle("");
+        setDescription("");
+        setCategory("Coding");
+        setRecurrence("daily");
+        setWeeklyDays([1, 2, 3, 4, 5]);
+        setMonthlyDay(1);
+        setDurationMinutes(60);
+        setStartDate(new Date().toISOString().split("T")[0]);
+        setEndDate("");
+      }
+    }
+  }, [isOpen, initialData]);
 
   const toggleWeeklyDay = (day: number) => {
     if (weeklyDays.includes(day)) {
@@ -65,17 +94,10 @@ export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
       weeklyDays: recurrence === "weekly" ? weeklyDays : undefined,
       monthlyDay: recurrence === "monthly" ? monthlyDay : undefined,
       durationMinutes,
-      startDate
+      startDate,
+      endDate: endDate || undefined
     });
 
-    // Reset state
-    setTitle("");
-    setDescription("");
-    setCategory("Coding");
-    setRecurrence("daily");
-    setWeeklyDays([1, 2, 3, 4, 5]);
-    setMonthlyDay(1);
-    setDurationMinutes(60);
     onClose();
   };
 
@@ -83,7 +105,6 @@ export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.5 }}
@@ -92,7 +113,6 @@ export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
             className="fixed inset-0 bg-black"
           />
 
-          {/* Modal Container */}
           <motion.div
             initial={{ scale: 0.9, y: 50, rotate: -2, opacity: 0 }}
             animate={{ 
@@ -105,13 +125,13 @@ export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
             exit={{ scale: 0.95, y: 30, rotate: 1, opacity: 0 }}
             className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border-4 border-black bg-white p-4 sm:p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-black scrollbar"
           >
-            {/* Header */}
             <div className="flex items-center justify-between border-b-4 border-black pb-4 mb-4">
               <h3 className="font-display text-2xl font-black uppercase italic flex items-center gap-2">
                 <Sparkles className="w-6 h-6 animate-pulse" />
-                Create Daily Goal
+                {initialData ? "Edit Goal" : "Create Daily Goal"}
               </h3>
               <button
+                type="button"
                 onClick={onClose}
                 className="rounded-xl border-4 border-black p-1 hover:bg-black hover:text-white transition-colors cursor-pointer"
               >
@@ -119,9 +139,7 @@ export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
               </button>
             </div>
 
-            {/* Form */}
             <form onSubmit={handleFormSubmit} className="space-y-4">
-              {/* Goal Title */}
               <div>
                 <label className="block text-sm font-black uppercase tracking-tight mb-1">
                   What are you going to do? <span className="text-red-500">*</span>
@@ -136,7 +154,6 @@ export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
                 />
               </div>
 
-              {/* Description */}
               <div>
                 <label className="block text-sm font-black uppercase tracking-tight mb-1">
                   Brief description (Why must you do this?)
@@ -149,7 +166,6 @@ export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
                 />
               </div>
 
-              {/* Category selector */}
               <div>
                 <label className="block text-sm font-black uppercase tracking-tight mb-1">Category</label>
                 <div className="flex flex-wrap gap-2">
@@ -171,21 +187,20 @@ export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
                 </div>
               </div>
 
-              {/* Recurrence and settings */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-black uppercase tracking-tight mb-1">Recurrence Pattern</label>
-                  <select
-                    value={recurrence}
-                    onChange={(e) => setRecurrence(e.target.value as RecurrenceType)}
-                    className="w-full rounded-xl border-4 border-black px-3 py-2 bg-white font-sans font-black uppercase outline-none cursor-pointer"
-                  >
-                    <option value="daily">Everyday (Daily)</option>
-                    <option value="weekly">Specific Days (Weekly)</option>
-                    <option value="monthly">Day of Month (Monthly)</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-black uppercase tracking-tight mb-1">Recurrence Pattern</label>
+                <select
+                  value={recurrence}
+                  onChange={(e) => setRecurrence(e.target.value as RecurrenceType)}
+                  className="w-full rounded-xl border-4 border-black px-3 py-2 bg-white font-sans font-black uppercase outline-none cursor-pointer"
+                >
+                  <option value="daily">Everyday (Daily)</option>
+                  <option value="weekly">Specific Days (Weekly)</option>
+                  <option value="monthly">Day of Month (Monthly)</option>
+                </select>
+              </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-black uppercase tracking-tight mb-1 flex items-center gap-1">
                     <Calendar className="w-4 h-4" /> Start Date
@@ -197,9 +212,19 @@ export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
                     className="w-full rounded-xl border-4 border-black px-3 py-1.5 bg-white font-sans outline-none font-bold"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-black uppercase tracking-tight mb-1 flex items-center gap-1">
+                    <Calendar className="w-4 h-4" /> End Date (Optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full rounded-xl border-4 border-black px-3 py-1.5 bg-white font-sans outline-none font-bold"
+                  />
+                </div>
               </div>
 
-              {/* Recurrence specifics */}
               {recurrence === "weekly" && (
                 <div className="p-3 bg-neutral-100 rounded-2xl border-4 border-black">
                   <label className="block text-xs font-extrabold uppercase tracking-wider mb-2 text-neutral-600">
@@ -248,7 +273,6 @@ export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
                 </div>
               )}
 
-              {/* Duration slider */}
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <label className="text-sm font-bold tracking-tight flex items-center gap-1">
@@ -285,7 +309,6 @@ export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
                 </div>
               </div>
 
-              {/* Footer action buttons */}
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <button
                   type="button"
@@ -303,7 +326,7 @@ export const CreateScheduleModal: React.FC<CreateScheduleModalProps> = ({
                       : "bg-black hover:bg-neutral-900"
                   }`}
                 >
-                  Create Goal
+                  {initialData ? "Save Changes" : "Create Goal"}
                 </button>
               </div>
             </form>

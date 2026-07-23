@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Calendar, Clock, CheckCircle2, XCircle, ArrowRight, Plus, ChevronLeft, ChevronRight, BookOpen, AlertTriangle } from "lucide-react";
+import { Calendar, Clock, CheckCircle2, XCircle, ArrowRight, Plus, ChevronLeft, ChevronRight, BookOpen, AlertTriangle, Edit } from "lucide-react";
 import { Schedule, TaskLog, ActiveTimer } from "../types";
+import { ConfirmationModal } from "./ConfirmationModal";
 
 interface TimetableGridProps {
   schedules: Schedule[];
@@ -11,6 +12,7 @@ interface TimetableGridProps {
   onLogTask: (scheduleId: string, date: string, completed: boolean, durationLogged: number, durationRequired: number) => void;
   onDeleteSchedule: (id: string) => void;
   onOpenCreateModal: () => void;
+  onEditSchedule: (schedule: Schedule) => void;
   activeTimer: ActiveTimer | null;
   onStartTimer: (scheduleId: string, scheduleTitle: string, date: string, durationMinutes: number) => void;
   onPauseTimer: () => void;
@@ -34,6 +36,7 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
   onLogTask,
   onDeleteSchedule,
   onOpenCreateModal,
+  onEditSchedule,
   activeTimer,
   onStartTimer,
   onPauseTimer,
@@ -43,9 +46,18 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
   const [viewMode, setViewMode] = useState<"weekly" | "monthly">("weekly");
   const [customTimerMinutes, setCustomTimerMinutes] = useState(25);
   
-  // Date states - Target fixed July 2026 as per local clock
-  const [currentDate, setCurrentDate] = useState(new Date("2026-07-17"));
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedTaskDetails, setSelectedTaskDetails] = useState<{ schedule: Schedule; date: string } | null>(null);
+
+  const [confirmConfig, setConfirmConfig] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    isDestructive: false,
+    action: () => {}
+  });
+
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
 
   // Helper to format YYYY-MM-DD
   const formatDateStr = (date: Date): string => {
@@ -176,7 +188,25 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
     setCurrentDate(newDate);
   };
 
-  const todayStr = "2026-07-17"; // Grounded local time
+  const todayStr = formatDateStr(new Date());
+
+  const MONTHS = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  
+  const handleSelectMonth = (monthIndex: number) => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(monthIndex);
+    setCurrentDate(newDate);
+    setIsMonthPickerOpen(false);
+  };
+
+  const handleSelectYear = (offset: number) => {
+    const newDate = new Date(currentDate);
+    newDate.setFullYear(currentDate.getFullYear() + offset);
+    setCurrentDate(newDate);
+  };
 
   return (
     <div className="space-y-6">
@@ -207,7 +237,7 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
         </div>
 
         {/* Date Selector */}
-        <div className="flex items-center gap-3 justify-center sm:justify-end">
+        <div className="flex items-center gap-3 justify-center sm:justify-end relative">
           <button
             onClick={handlePrevRange}
             className="rounded-xl border-4 border-black p-2 bg-white hover:bg-neutral-50 active:translate-y-px transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
@@ -215,7 +245,10 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
             <ChevronLeft className="w-4 h-4 font-black" />
           </button>
           
-          <span className="font-display font-black text-sm text-center min-w-[150px] bg-white border-4 border-black px-4 py-2 rounded-2xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+          <button
+            onClick={() => setIsMonthPickerOpen(!isMonthPickerOpen)}
+            className="font-display font-black text-sm text-center min-w-[150px] bg-white border-4 border-black px-4 py-2 rounded-2xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-amber-50 active:translate-y-px transition-all cursor-pointer"
+          >
             {viewMode === "weekly" ? (
               <>
                 {weekDays[0].toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -225,7 +258,42 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
             ) : (
               currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })
             )}
-          </span>
+          </button>
+
+          {isMonthPickerOpen && (
+            <div className="absolute top-full mt-3 right-0 sm:right-10 w-72 bg-white border-4 border-black rounded-3xl p-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] z-50">
+              <div className="flex justify-between items-center mb-4">
+                <button
+                  onClick={() => handleSelectYear(-1)}
+                  className="p-1.5 rounded-lg border-2 border-black hover:bg-neutral-100 cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="font-display font-black text-lg">{currentDate.getFullYear()}</span>
+                <button
+                  onClick={() => handleSelectYear(1)}
+                  className="p-1.5 rounded-lg border-2 border-black hover:bg-neutral-100 cursor-pointer"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {MONTHS.map((month, idx) => (
+                  <button
+                    key={month}
+                    onClick={() => handleSelectMonth(idx)}
+                    className={`py-2 px-1 text-xs font-black uppercase tracking-tight rounded-xl border-2 border-black cursor-pointer transition-all ${
+                      currentDate.getMonth() === idx
+                        ? "bg-black text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                        : "bg-white text-black hover:bg-neutral-100 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+                    }`}
+                  >
+                    {month.substring(0, 3)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <button
             onClick={handleNextRange}
@@ -354,12 +422,11 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
-            className="p-3 sm:p-6 bg-white border-4 border-black rounded-3xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] text-black overflow-hidden"
+            className="p-3 sm:p-6 bg-white border-4 border-black rounded-3xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] text-black"
           >
-            <div className="overflow-x-auto pb-2 scrollbar">
-              <div className="min-w-[700px] xl:min-w-0">
-                {/* Weekdays Labels */}
-                <div className="grid grid-cols-7 gap-2 border-b-4 border-black pb-3 mb-3 text-center">
+            <div className="w-full">
+              {/* Weekdays Labels */}
+              <div className="grid grid-cols-7 gap-1 sm:gap-2 border-b-4 border-black pb-3 mb-3 text-center">
                   {WEEK_DAYS_LABELS.map((day) => (
                     <span key={day.val} className="font-display font-black text-xs md:text-sm uppercase italic">
                       {day.short}
@@ -433,7 +500,6 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                   })}
                 </div>
               </div>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -481,6 +547,7 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                 const log = getLogForSchedule(selectedTaskDetails.schedule, selectedTaskDetails.date);
                 const isPast = selectedTaskDetails.date < todayStr;
                 const isToday = selectedTaskDetails.date === todayStr;
+                const isFuture = selectedTaskDetails.date > todayStr;
                 const isRollover = log.durationRequired > selectedTaskDetails.schedule.durationMinutes;
 
                 return (
@@ -523,8 +590,8 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                       </div>
                     </div>
 
-                    {/* Interactive Log Controls (Visible only for today or future) */}
-                    {(isToday || !isPast) ? (
+                    {/* Interactive Log Controls (Visible only for today) */}
+                    {isToday ? (
                       <div className="space-y-4 pt-1.5 border-t border-neutral-100">
                         {/* IN-APP COUNTDOWN TIMER INTERFACE */}
                         <div className="p-3 sm:p-4 rounded-2xl border-4 border-black bg-amber-50 space-y-3">
@@ -566,16 +633,23 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                                   onClick={() => {
                                     const elapsed = Math.ceil((activeTimer.totalSeconds - activeTimer.secondsRemaining) / 60);
                                     if (elapsed > 0) {
-                                      if (window.confirm(`Stop session and log ${elapsed} completed minutes?`)) {
-                                        onLogTask(
-                                          activeTimer.scheduleId,
-                                          activeTimer.date,
-                                          (log.durationLogged + elapsed) >= log.durationRequired,
-                                          log.durationLogged + elapsed,
-                                          log.durationRequired
-                                        );
-                                        onCancelTimer();
-                                      }
+                                      setConfirmConfig({
+                                        isOpen: true,
+                                        title: "End Timer",
+                                        message: `Stop session and log ${elapsed} completed minutes?`,
+                                        isDestructive: false,
+                                        action: () => {
+                                          onLogTask(
+                                            activeTimer.scheduleId,
+                                            activeTimer.date,
+                                            (log.durationLogged + elapsed) >= log.durationRequired,
+                                            log.durationLogged + elapsed,
+                                            log.durationRequired
+                                          );
+                                          onCancelTimer();
+                                          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                                        }
+                                      });
                                     } else {
                                       onCancelTimer();
                                     }
@@ -648,7 +722,7 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                         </div>
 
                         {/* Traditional Manual Adjustments */}
-                        <div className="space-y-2.5 pt-1.5 border-t-2 border-dashed border-black/10">
+                        {/* <div className="space-y-2.5 pt-1.5 border-t-2 border-dashed border-black/10">
                           <span className="block font-black text-2xs uppercase tracking-wider text-neutral-400">
                             Manual Quick Adjustments
                           </span>
@@ -665,16 +739,15 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                             >
                               +30 Mins
                             </button>
-                            <button
-                              onClick={() => handleToggleComplete(selectedTaskDetails.schedule, selectedTaskDetails.date)}
-                              className={`flex-1 py-2 rounded-xl border-4 border-black text-2xs font-black uppercase tracking-wider cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-px ${
-                                log.completed ? "bg-green-100 text-green-800 border-green-600 shadow-[2px_2px_0px_0px_#16a34a]" : "bg-black text-white hover:bg-neutral-900"
-                              }`}
-                            >
-                              {log.completed ? "Incomplete" : "Mark Done ✅"}
-                            </button>
                           </div>
-                        </div>
+                        </div> */}
+                      </div>
+                    ) : isFuture ? (
+                      <div className="p-3 bg-blue-50 border-4 border-blue-400 rounded-2xl flex items-start gap-2.5 text-blue-900 mt-4 shadow-[2px_2px_0px_0px_rgba(59,130,246,0.5)]">
+                        <Clock className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                        <p className="text-2xs font-bold leading-relaxed font-sans">
+                          This task is scheduled for a future date. Take a break for now!
+                        </p>
                       </div>
                     ) : (
                       /* Past days results indicator (Red X Penalty message) */
@@ -697,20 +770,35 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                       </div>
                     )}
 
-                    {/* Footer Delete option */}
-                    <div className="flex gap-2 pt-2 border-t border-neutral-100 mt-2">
+                    {/* Footer Actions */}
+                    <div className="flex justify-between items-center gap-2 pt-3 border-t-2 border-black/10 mt-3">
                       <button
                         onClick={() => {
-                          if (window.confirm("Are you sure you want to permanently delete this recurring schedule? All past logs will be deleted!")) {
-                            onDeleteSchedule(selectedTaskDetails.schedule.id);
-                            setSelectedTaskDetails(null);
-                          }
+                          setConfirmConfig({
+                            isOpen: true,
+                            title: "Delete Goal?",
+                            message: "Are you sure you want to permanently delete this recurring schedule? All past logs will be deleted!",
+                            isDestructive: true,
+                            action: () => {
+                              onDeleteSchedule(selectedTaskDetails.schedule.id);
+                              setSelectedTaskDetails(null);
+                              setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                            }
+                          });
                         }}
                         className="text-2xs text-red-500 font-bold hover:underline cursor-pointer"
                       >
-                        Delete Goal & Timetable Pattern
+                        Delete Goal
                       </button>
-                      <span className="text-neutral-300 ml-auto font-bold font-mono text-3xs">ID: {selectedTaskDetails.schedule.id}</span>
+                      <button
+                        onClick={() => {
+                          setSelectedTaskDetails(null);
+                          onEditSchedule(selectedTaskDetails.schedule);
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-black bg-white hover:bg-neutral-50 text-xs font-black uppercase shadow-[1.5px_1.5px_0px_0px_rgba(0,0,0,1)] active:translate-y-px transition-all cursor-pointer"
+                      >
+                        <Edit className="w-3.5 h-3.5" /> Edit
+                      </button>
                     </div>
                   </div>
                 );
@@ -728,6 +816,15 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmationModal
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        isDestructive={confirmConfig.isDestructive}
+        onConfirm={confirmConfig.action}
+        onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

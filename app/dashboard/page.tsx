@@ -1,160 +1,86 @@
 "use client";
 
-import { RefreshCw, Sparkles, ShieldCheck, AlertTriangle, Flame, Calendar, Trophy, Settings, LogOut, XCircle, Pause, Play } from "lucide-react";
-import { Schedule } from "motion";
+import { RefreshCw, Sparkles, Flame, Calendar, Trophy, Settings, LogOut, XCircle, Pause, Play } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useState, useEffect } from "react";
-import { CreateScheduleModal } from "../components/CreateScheduleModal";
+import { ScheduleModal } from "../components/ScheduleModal";
+import { ConfirmationModal } from "../components/ConfirmationModal";
 import { Leaderboard } from "../components/Leaderboard";
 import { MomSettings } from "../components/MomSettings";
 import { TimetableGrid } from "../components/TimetableGrid";
 import { useToast } from "../components/Toast";
 import { useTheme } from "../hooks/useTheme";
 import { useMomStore } from "../store/useMomStore";
-import { TaskLog, EmailLog } from "../types";
 import { playSound } from "../utils/audio";
-
-// Initial static mock database configurations
-const DEFAULT_PROFILE = {
-  email: "kalejaiyecaleb@gmail.com",
-  name: "Lazy Child",
-  streak: 0,
-  lastActiveDate: null
-};
-
-const DEFAULT_SCHEDULES: Schedule[] = [
-  {
-    id: "schedule_1",
-    title: "Code Python everyday",
-    description: "Must stay sharp with Python scripting!",
-    category: "Coding",
-    recurrence: "daily",
-    durationMinutes: 60,
-    startDate: "2026-07-15",
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: "schedule_2",
-    title: "Solve Math Problems",
-    description: "Cousin Timmy solves Calculus in his sleep. I must do algebra.",
-    category: "Math",
-    recurrence: "weekly",
-    weeklyDays: [1, 3, 5], // Mon, Wed, Fri
-    durationMinutes: 45,
-    startDate: "2026-07-15",
-    createdAt: new Date().toISOString()
-  }
-];
-
-const DEFAULT_LOGS: TaskLog[] = [
-  {
-    id: "schedule_1_2026-07-15",
-    scheduleId: "schedule_1",
-    date: "2026-07-15",
-    completed: true,
-    durationRequired: 60,
-    durationLogged: 60,
-    rolledOver: false,
-    rolledOverToNextDay: false
-  },
-  {
-    id: "schedule_2_2026-07-15",
-    scheduleId: "schedule_2",
-    date: "2026-07-15",
-    completed: true,
-    durationRequired: 45,
-    durationLogged: 45,
-    rolledOver: false,
-    rolledOverToNextDay: false
-  }
-];
-
-const DEFAULT_EMAIL_LOGS: EmailLog[] = [
-  {
-    id: "email_welcome",
-    timestamp: new Date().toISOString(),
-    subject: "Your mother is watching you now.",
-    body: "Son, I heard you want to be productive. Don't make me regret supporting you. Finish your schedules, or feel my wrath. Little Timmy already has a 210-day streak! Love, Mom.",
-    type: "test"
-  }
-];
-
-// Helper to determine if a schedule was active on a given date (YYYY-MM-DD)
-const isScheduleActiveOnDate = (schedule: Schedule, dateStr: string): boolean => {
-  if (schedule.startDate > dateStr) return false;
-  if (schedule.endDate && schedule.endDate < dateStr) return false;
-
-  const date = new Date(dateStr + "T00:00:00");
-  const dayOfWeek = date.getDay(); // 0 is Sun, 1 is Mon, etc.
-
-  if (schedule.recurrence === "daily") {
-    return true;
-  } else if (schedule.recurrence === "weekly") {
-    return schedule.weeklyDays ? schedule.weeklyDays.includes(dayOfWeek) : false;
-  } else if (schedule.recurrence === "monthly") {
-    const dayOfMonth = date.getDate();
-    return schedule.monthlyDay ? schedule.monthlyDay === dayOfMonth : false;
-  }
-  return false;
-};
-
-// Generate list of dates between two dates inclusive
-const getDatesBetween = (startDateStr: string, endDateStr: string): string[] => {
-  const dates: string[] = [];
-  const start = new Date(startDateStr + "T00:00:00");
-  const end = new Date(endDateStr + "T00:00:00");
-  const current = new Date(start);
-
-  while (current <= end) {
-    const year = current.getFullYear();
-    const month = String(current.getMonth() + 1).padStart(2, '0');
-    const day = String(current.getDate()).padStart(2, '0');
-    dates.push(`${year}-${month}-${day}`);
-    current.setDate(current.getDate() + 1);
-  }
-  return dates;
-};
+import { createClient } from "../utils/supabase/client";
+import { useSupabaseData } from "../hooks/useSupabaseData";
+import { TimetableSkeleton, LeaderboardSkeleton } from "../components/Skeleton";
+import { User } from "@supabase/supabase-js";
 
 export default function Dashboard() {
   const { addToast } = useToast();
   const { theme, setTheme } = useTheme();
+  
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const supabase = createClient();
 
-  // Selected state and actions from the Zustand store
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setAuthUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
+
   const {
-    profile,
-    schedules,
-    logs,
-    emailLogs,
-    smtp,
-    leaderboard,
-    loading,
+    useProfile,
+    useSchedules,
+    useTaskLogs,
+    useLeaderboard,
+    useCreateSchedule,
+    useUpdateSchedule,
+    useDeleteSchedule,
+    useUpdateTaskLog,
+  } = useSupabaseData();
+
+  const { data: profile, isLoading: profileLoading } = useProfile(authUser?.id);
+  const { data: schedules = [], isLoading: schedulesLoading } = useSchedules(authUser?.id);
+  const { data: logs = [], isLoading: logsLoading } = useTaskLogs(authUser?.id);
+  const { data: leaderboard = [], isLoading: leaderboardLoading } = useLeaderboard();
+
+  const createScheduleMutation = useCreateSchedule();
+  const updateScheduleMutation = useUpdateSchedule();
+  const deleteScheduleMutation = useDeleteSchedule();
+  const updateTaskLogMutation = useUpdateTaskLog();
+
+  const [editingSchedule, setEditingSchedule] = useState<any | null>(null);
+  
+  const [confirmConfig, setConfirmConfig] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    action: () => {}
+  });
+
+  // Selected state and actions from the Zustand UI store
+  const {
     activeTimer,
     activeTab,
     isCreateModalOpen,
     setActiveTimer,
     setActiveTab,
     setIsCreateModalOpen,
-    init,
-    signIn,
-    logout,
-    createSchedule,
-    deleteSchedule,
-    logTaskEffort,
-    toggleNotifications,
-    toggleDarkMode,
-    forceNag,
-    forceRollover,
   } = useMomStore();
 
-  // Auth Inputs (local UI state only)
-  const [authEmail, setAuthEmail] = useState("");
-  const [authName, setAuthName] = useState("");
   const [signingIn, setSigningIn] = useState(false);
-
-  // Initialize and sync store on mount
-  useEffect(() => {
-    init(addToast);
-  }, [init]);
 
   // Sync Timer countdown in background
   useEffect(() => {
@@ -183,42 +109,83 @@ export default function Dashboard() {
   }, [activeTimer?.isRunning]);
 
   // Auth Sign-In handler
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!authEmail.trim()) return;
-
+  const handleSignIn = async () => {
     setSigningIn(true);
-    await signIn(authEmail, authName, addToast);
-    setSigningIn(false);
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      }
+    });
   };
 
   // Logout handler
-  const handleLogout = () => {
-    logout(addToast);
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    addToast("Logged out successfully.", "info");
   };
 
   // Create Goal Schedule
-  const handleCreateSchedule = (newSched: any) => {
-    createSchedule(newSched, addToast);
+  const handleCreateSchedule = async (newSched: any) => {
+    if (!authUser) return;
+    try {
+      await createScheduleMutation.mutateAsync({ userId: authUser.id, schedule: newSched });
+      addToast("Schedule created successfully!", "success");
+    } catch (err) {
+      addToast("Failed to create schedule.", "error");
+    }
+  };
+
+  // Edit Goal Schedule
+  const handleUpdateSchedule = async (updatedSched: any) => {
+    if (!authUser || !editingSchedule) return;
+    try {
+      await updateScheduleMutation.mutateAsync({ userId: authUser.id, id: editingSchedule.id, schedule: updatedSched });
+      addToast("Schedule updated successfully!", "success");
+      setEditingSchedule(null);
+    } catch (err) {
+      addToast("Failed to update schedule.", "error");
+    }
   };
 
   // Delete Goal Schedule
-  const handleDeleteSchedule = (id: string) => {
-    deleteSchedule(id, addToast);
+  const handleDeleteSchedule = async (id: string) => {
+    if (!authUser) return;
+    try {
+      await deleteScheduleMutation.mutateAsync({ id, userId: authUser.id });
+      addToast("Schedule deleted.", "info");
+    } catch (err) {
+      addToast("Failed to delete schedule.", "error");
+    }
   };
 
-  // Log Task Effort manually or via buttons
-  const handleLogTask = (
+  // Log Task Effort
+  const handleLogTask = async (
     scheduleId: string,
     date: string,
     completed: boolean,
     durationLogged: number,
     durationRequired: number
   ) => {
-    logTaskEffort(scheduleId, date, completed, durationLogged, durationRequired, addToast);
+    if (!authUser) return;
+    try {
+      await updateTaskLogMutation.mutateAsync({
+        userId: authUser.id,
+        logId: `${scheduleId}_${date}`,
+        scheduleId,
+        date,
+        completed,
+        durationLogged,
+        durationRequired
+      });
+      // Optionally play sound if completed
+      if (completed) playSound('complete');
+    } catch (err) {
+      addToast("Failed to log task.", "error");
+    }
   };
 
-  // Timer Handlers passed into selected task card
+  // Timer Handlers
   const handleStartTimer = (scheduleId: string, scheduleTitle: string, date: string, durationMinutes: number) => {
     setActiveTimer({
       scheduleId,
@@ -253,42 +220,45 @@ export default function Dashboard() {
   };
 
   const handleTimerComplete = (scheduleId: string, date: string, minsLogged: number) => {
+    if (!authUser) return;
+    
     playSound('complete');
     addToast(`⏱️ Countdown session ended! Logged ${minsLogged} minutes!`, "success");
 
-    const sched = schedules.find(s => s.id === scheduleId);
+    const sched = schedules.find((s: any) => s.id === scheduleId);
     if (!sched) return;
 
     const logId = `${scheduleId}_${date}`;
-    const log = logs.find(l => l.id === logId);
+    const log = logs.find((l: any) => l.id === logId);
     const durationRequired = log ? log.durationRequired : sched.durationMinutes;
     const oldDurationLogged = log ? log.durationLogged : 0;
     
     const newLogged = oldDurationLogged + minsLogged;
     const completed = newLogged >= durationRequired;
 
-    logTaskEffort(scheduleId, date, completed, newLogged, durationRequired, addToast);
+    handleLogTask(scheduleId, date, completed, newLogged, durationRequired);
     setActiveTimer(null);
   };
 
-  // Toggle Email Notifications
-  const handleToggleNotifications = (enabled: boolean) => {
-    toggleNotifications(enabled, addToast);
+  // Toggle Settings Handlers (would need to update Profile via mutation ideally, skipping for now since UI doesn't use it much)
+  const handleToggleNotifications = async (enabled: boolean) => {
+    // toggleNotifications(enabled, addToast);
+    addToast("Settings update feature coming soon.", "info");
   };
 
-  // Toggle Dark Mode Theme
-  const handleToggleDarkMode = (enabled: boolean) => {
-    toggleDarkMode(enabled, addToast);
+  const handleToggleDarkMode = async (enabled: boolean) => {
+    // toggleDarkMode(enabled, addToast);
+    addToast("Settings update feature coming soon.", "info");
   };
 
-  // Force Mom Nag scolding message
   const handleForceNag = async () => {
-    return await forceNag(addToast);
+    // return await forceNag(addToast);
+    return { success: true };
   };
 
-  // Mock Rollover simulation
   const handleForceRollover = async () => {
-    return await forceRollover(addToast);
+    // return await forceRollover(addToast);
+    return { rolledOverTasksCount: 0, streakResetOccurred: false, currentStreak: 0 };
   };
 
   // Time formatter MM:SS
@@ -298,17 +268,17 @@ export default function Dashboard() {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
-  if (loading) {
+  if (authLoading || (authUser && profileLoading)) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6">
         <RefreshCw className="w-8 h-8 animate-spin text-foreground mb-3" />
-        <span className="font-display font-black text-sm tracking-tight">Syncing calendar records...</span>
+        <span className="font-display font-black text-sm tracking-tight">Loading Mom's Dashboard...</span>
       </div>
     );
   }
 
-  // Render Sign-In Page if no active user profile
-  if (!profile) {
+  // Render Sign-In Page if no active user
+  if (!authUser || !profile) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans">
         <div className="absolute -left-10 -top-10 w-44 h-44 rounded-full bg-neutral-100 border border-neutral-200" />
@@ -328,76 +298,26 @@ export default function Dashboard() {
             MOM PRODUCTIVITY
           </h2>
           <p className="text-neutral-500 text-xs px-1 sm:px-2 mb-6 leading-relaxed">
-            Your mother is watching you now. Setup daily goals, log your active work, and stay productive. If you miss a task, she will roll over hours to tomorrow and scold you offline!
+            Your mother is watching you now. Setup daily goals, log your active work, and stay productive. 
           </p>
 
-          <form onSubmit={handleSignIn} className="space-y-4 text-left">
-            <div>
-              <label className="block text-2xs font-black uppercase tracking-wider mb-1">
-                Your Email Address <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="email"
-                required
-                placeholder="you@example.com"
-                value={authEmail}
-                onChange={(e) => setAuthEmail(e.target.value)}
-                className="w-full rounded-xl border-4 border-black px-3 py-2 outline-none font-bold text-sm bg-neutral-50 focus:bg-white focus:shadow-[2px_2px_0px_0px_#000] transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-2xs font-black uppercase tracking-wider mb-1">
-                Your Preferred Name
-              </label>
-              <input
-                type="text"
-                placeholder="Lazy Child (or your real name)"
-                value={authName}
-                onChange={(e) => setAuthName(e.target.value)}
-                className="w-full rounded-xl border-4 border-black px-3 py-2 outline-none font-bold text-sm bg-neutral-50 focus:bg-white focus:shadow-[2px_2px_0px_0px_#000] transition-all"
-              />
-            </div>
-
-            <div className="pt-2">
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                type="submit"
-                className="w-full py-3.5 rounded-2xl border-4 border-black bg-black text-white hover:bg-neutral-900 text-sm font-black uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                {signingIn ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 animate-pulse" />
-                    Enter Mom's House
-                  </>
-                )}
-              </motion.button>
-            </div>
-          </form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t-4 border-black border-dashed" />
-            </div>
-            <div className="relative flex justify-center text-xs font-bold uppercase">
-              <span className="bg-white px-3 border-4 border-black rounded-lg uppercase font-black">OR ENTER QUICKLY</span>
-            </div>
+          <div className="pt-2">
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={handleSignIn}
+              disabled={signingIn}
+              className="w-full py-3.5 rounded-2xl border-4 border-black bg-black text-white hover:bg-neutral-900 text-sm font-black uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              {signingIn ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 animate-pulse" />
+                  Sign In with Google
+                </>
+              )}
+            </motion.button>
           </div>
-
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => {
-              setAuthEmail("kalejaiyecaleb@gmail.com");
-              setAuthName("Caleb");
-              addToast("Google credentials simulated! Press 'Enter Mom's House'.", "info");
-            }}
-            className="w-full py-3 rounded-2xl border-4 border-black bg-white text-black hover:bg-neutral-50 text-xs font-black uppercase tracking-wider cursor-pointer flex items-center justify-center gap-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-          >
-            <ShieldCheck className="w-4 h-4 text-green-600" />
-            Auto-Fill Simulated Profile
-          </motion.button>
         </motion.div>
       </div>
     );
@@ -405,11 +325,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans pb-16 relative">
-      <div className="bg-black text-amber-300 py-2.5 px-4 border-b-4 border-black text-center text-2xs font-extrabold uppercase tracking-widest flex items-center justify-center gap-2 animate-pulse">
-        <AlertTriangle className="w-4 h-4 shrink-0" />
-        Finish your timetables! Mom is calculating failures & penalties!
-      </div>
-
       <div className="w-full max-w-[1440px] mx-auto px-4 mt-6">
         <header className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-4 rounded-3xl border-4 border-black bg-white shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] mb-8 gap-4">
           <div className="flex items-center gap-3">
@@ -435,36 +350,33 @@ export default function Dashboard() {
               <span className="font-mono font-black text-xs">{profile.streak} DAY STREAK</span>
             </div>
 
-            <div className="flex items-center border-4 border-black p-0.5 rounded-2xl bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] min-w-0">
+            <div className="hidden sm:flex items-center border-4 border-black p-0.5 rounded-2xl bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] min-w-0">
               <button
                 onClick={() => setActiveTab("planner")}
-                className={`p-2 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all ${
+                className={`p-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all ${
                   activeTab === "planner" ? "bg-black text-white" : "hover:bg-neutral-50"
                 }`}
               >
                 <Calendar className="w-4 h-4 shrink-0" />
-                <span className="hidden min-[420px]:inline">Timetables</span>
-                <span className="inline min-[420px]:hidden">Goals</span>
+                <span>Timetables</span>
               </button>
               <button
                 onClick={() => setActiveTab("leaderboard")}
-                className={`p-2 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all ${
+                className={`p-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all ${
                   activeTab === "leaderboard" ? "bg-black text-white" : "hover:bg-neutral-50"
                 }`}
               >
                 <Trophy className="w-4 h-4 shrink-0" />
-                <span className="hidden min-[420px]:inline">Leaderboard</span>
-                <span className="inline min-[420px]:hidden">Ranks</span>
+                <span>Leaderboard</span>
               </button>
               <button
                 onClick={() => setActiveTab("mom")}
-                className={`p-2 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all ${
+                className={`p-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all ${
                   activeTab === "mom" ? "bg-black text-white" : "hover:bg-neutral-50"
                 }`}
               >
                 <Settings className="w-4 h-4 shrink-0" />
-                <span className="hidden min-[420px]:inline">Mom's Room</span>
-                <span className="inline min-[420px]:hidden">Mom</span>
+                <span>Mom's Room</span>
               </button>
             </div>
 
@@ -508,18 +420,29 @@ export default function Dashboard() {
                   </motion.button>
                 </div>
 
-                <TimetableGrid
-                  schedules={schedules}
-                  logs={logs}
-                  onLogTask={handleLogTask}
-                  onDeleteSchedule={handleDeleteSchedule}
-                  onOpenCreateModal={() => setIsCreateModalOpen(true)}
-                  activeTimer={activeTimer}
-                  onStartTimer={handleStartTimer}
-                  onPauseTimer={handlePauseTimer}
-                  onResumeTimer={handleResumeTimer}
-                  onCancelTimer={handleCancelTimer}
-                />
+                {schedulesLoading || logsLoading ? (
+                  <TimetableSkeleton />
+                ) : (
+                  <TimetableGrid
+                    schedules={schedules}
+                    logs={logs}
+                    onLogTask={handleLogTask}
+                    onDeleteSchedule={handleDeleteSchedule}
+                    onOpenCreateModal={() => {
+                      setEditingSchedule(null);
+                      setIsCreateModalOpen(true);
+                    }}
+                    onEditSchedule={(schedule) => {
+                      setEditingSchedule(schedule);
+                      setIsCreateModalOpen(true);
+                    }}
+                    activeTimer={activeTimer}
+                    onStartTimer={handleStartTimer}
+                    onPauseTimer={handlePauseTimer}
+                    onResumeTimer={handleResumeTimer}
+                    onCancelTimer={handleCancelTimer}
+                  />
+                )}
               </motion.div>
             )}
 
@@ -530,7 +453,11 @@ export default function Dashboard() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 15 }}
               >
-                <Leaderboard leaderboard={leaderboard} profile={profile} />
+                {leaderboardLoading ? (
+                  <LeaderboardSkeleton />
+                ) : (
+                  <Leaderboard leaderboard={leaderboard} profile={profile} />
+                )}
               </motion.div>
             )}
 
@@ -546,7 +473,7 @@ export default function Dashboard() {
                   darkModeEnabled={profile?.darkModeEnabled ?? false}
                   onToggleNotifications={handleToggleNotifications}
                   onToggleDarkMode={handleToggleDarkMode}
-                  emailLogs={emailLogs}
+                  emailLogs={[]}
                   onForceNag={handleForceNag}
                   onForceRollover={handleForceRollover}
                 />
@@ -556,6 +483,37 @@ export default function Dashboard() {
         </main>
       </div>
 
+      {/* Mobile Bottom Navigation */}
+      <div className="fixed sm:hidden bottom-0 left-0 w-full bg-white border-t-4 border-black p-2 px-4 z-40 flex justify-between gap-2 shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)]">
+        <button
+          onClick={() => setActiveTab("planner")}
+          className={`flex-1 flex flex-col items-center justify-center py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+            activeTab === "planner" ? "bg-black text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" : "bg-white text-neutral-500 hover:bg-neutral-50"
+          }`}
+        >
+          <Calendar className="w-5 h-5 mb-1" />
+          Timetables
+        </button>
+        <button
+          onClick={() => setActiveTab("leaderboard")}
+          className={`flex-1 flex flex-col items-center justify-center py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+            activeTab === "leaderboard" ? "bg-black text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" : "bg-white text-neutral-500 hover:bg-neutral-50"
+          }`}
+        >
+          <Trophy className="w-5 h-5 mb-1" />
+          Leaderboard
+        </button>
+        <button
+          onClick={() => setActiveTab("mom")}
+          className={`flex-1 flex flex-col items-center justify-center py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+            activeTab === "mom" ? "bg-black text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" : "bg-white text-neutral-500 hover:bg-neutral-50"
+          }`}
+        >
+          <Settings className="w-5 h-5 mb-1" />
+          Mom's Room
+        </button>
+      </div>
+
       {/* Persistent Global Floating Timer Widget */}
       <AnimatePresence>
         {activeTimer && (
@@ -563,7 +521,7 @@ export default function Dashboard() {
             initial={{ y: 80, scale: 0.9, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
             exit={{ y: 80, scale: 0.9, opacity: 0 }}
-            className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl border-4 border-black bg-amber-50 text-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] max-w-sm w-[90vw] flex flex-col gap-2"
+            className="fixed bottom-[88px] sm:bottom-6 right-4 sm:right-6 z-50 p-4 rounded-2xl border-4 border-black bg-amber-50 text-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] w-[calc(100vw-32px)] sm:max-w-sm flex flex-col gap-2"
           >
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono font-extrabold uppercase text-neutral-500 tracking-wider">
@@ -620,9 +578,15 @@ export default function Dashboard() {
                   onClick={() => {
                     const elapsedMins = Math.ceil((activeTimer.totalSeconds - activeTimer.secondsRemaining) / 60);
                     if (elapsedMins > 0) {
-                      if (window.confirm(`Stop timer now and claim ${elapsedMins} logged minutes?`)) {
-                        handleTimerComplete(activeTimer.scheduleId, activeTimer.date, elapsedMins);
-                      }
+                      setConfirmConfig({
+                        isOpen: true,
+                        title: "End Timer Early?",
+                        message: `Stop timer now and claim ${elapsedMins} logged minutes?`,
+                        action: () => {
+                          handleTimerComplete(activeTimer.scheduleId, activeTimer.date, elapsedMins);
+                          setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                        }
+                      });
                     } else {
                       handleCancelTimer();
                     }
@@ -637,10 +601,22 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      <CreateScheduleModal
+      <ScheduleModal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={handleCreateSchedule}
+        initialData={editingSchedule}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setEditingSchedule(null);
+        }}
+        onSubmit={editingSchedule ? handleUpdateSchedule : handleCreateSchedule}
+      />
+
+      <ConfirmationModal
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        onConfirm={confirmConfig.action}
+        onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
       />
     </div>
   );

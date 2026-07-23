@@ -7,10 +7,11 @@ export type Theme = "light" | "dark";
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(() => {
     // 1. Check local storage for existing preference inside user profile
-    const storedProfile = localStorage.getItem("mom_profile");
-    if (storedProfile) {
-      try {
-        const parsed = JSON.parse(storedProfile);
+    if (typeof window !== "undefined") {
+      const storedProfile = localStorage.getItem("mom_profile");
+      if (storedProfile) {
+        try {
+          const parsed = JSON.parse(storedProfile);
         if (parsed && typeof parsed.darkModeEnabled === "boolean") {
           return parsed.darkModeEnabled ? "dark" : "light";
         }
@@ -18,6 +19,7 @@ export function useTheme() {
         console.error("Error reading theme from profile:", err);
       }
     }
+  }
     // 2. Default to system preference
     // if (typeof window !== "undefined" && window.matchMedia) {
     //   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
